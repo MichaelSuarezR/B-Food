@@ -50,6 +50,6 @@ cd ../frontend/mobile
 npx expo start -c
 ```
 Then:
-Install Expo Go on your phone
-Scan the QR code shown in the terminal from the camera, and open it in Expo
-The app should open and load the dev build
+- Install Expo Go on your phone
+- Scan the QR code shown in the terminal from the camera, and open it in Expo
+- The app should open and load the dev build
