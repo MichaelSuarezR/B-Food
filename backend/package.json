@@ -1,0 +1,36 @@
+{
+  "name": "bruincoin-backend",
+  "version": "1.0.0",
+  "description": "Backend API for BruinCoin - UCLA student trading platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node express/dist/server.js",
+    "dev": "nodemon express/src/server.ts",
+    "build": "tsc",
+    "postinstall": "npm run build",
+    "test": "jest"
+  },
+  "keywords": ["ucla", "trading", "students", "api"],
+  "author": "BruinCoin Team",
+  "license": "MIT",
+  "dependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "@supabase/supabase-js": "^2.38.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
