@@ -38,7 +38,18 @@ git clone https://github.com/MichaelSuarezR/B-Food.git
 cd B-Food
 
 # Backend deps
-cd backend && npm install
+cd backend
+npm install
 
 # Mobile deps
-cd ../frontend/mobile && npm install
+cd ../frontend/mobile
+npm install
+
+#Start Expo and clear the Metro cache:
+cd ../frontend/mobile
+npx expo start -c
+
+Then:
+Install Expo Go on your phone
+Scan the QR code shown in the terminal from the camera, and open in Expo
+The app should open and load the dev build
