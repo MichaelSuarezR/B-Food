@@ -34,7 +34,7 @@ B-Food lets UCLA students either order from campus dining halls or offer deliver
 
 ### Installation
 ```bash
-git clone https://github.com/<your-username>/B-Food.git
+git clone https://github.com/MichaelSuarezR/B-Food.git
 cd B-Food
 npm install
 
