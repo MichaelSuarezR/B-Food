@@ -1,248 +1,94 @@
-# BruinCoin
+# B-Food
 
-A modern cryptocurrency application built with Next.js frontend and Node.js backend, powered by Supabase.
+B-Food is a UCLA-focused marketplace for ordering from on-campus dining halls or offering deliveries to other students. The project uses a React Native (Expo) mobile app, a Next.js web shell, and an Express API backed by Supabase. You can clone this repo and run the mobile client locally to see the live dining status cards and the delivery workflow.
 
-## 🏗️ Architecture
+---
 
-- **Frontend**: Next.js with v0 (deployed on Vercel)
-- **Backend**: Node.js/Express API (deployed on Render)
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Version Control**: Separate Git repositories with branch-based workflow
+## Features
 
-## 🌳 Git Workflow
+- **Live Dining Status Cards** – Scrapes UCLA dining pages and activity meters to show current open/closed state, hours, and activity levels for Epic at Ackerman, Bruin Café, Rendezvous, and The Study at Hedrick.
+- **Dark Mode Toggle** – Full theme support, including the safe area, bottom navigation, and in-app cards.
+- **Profile & Inbox Modals** – Profile, messages, and individual chats open as full-screen modals from the home screen (avatar + chat icon) rather than cluttering the main navigation.
+- **Deliver Tab** – A dedicated screen for students who want to post availability and accept delivery requests; tied into the listing creation flow.
+- **Supabase Backed** – Authentication and persistent user data are managed through Supabase, including the REST API for the mobile client.
 
-This project uses a **single repository** with separate branch workflows for frontend and backend:
+---
 
-### Repository Structure
-- `bruinCoin/` - Single repository containing both frontend and backend
-- `bruinCoin/frontend/` - Frontend code (Next.js)
-- `bruinCoin/backend/` - Backend code (Node.js/Express)
+## Tech Stack
 
-### Branch Structure
-- `main` - Default branch (contains both frontend and backend)
-- `frontend-main` - Production frontend branch
-- `frontend-dev` - Development frontend branch
-- `frontend-feature/*` - Frontend feature branches (cloned off `frontend-dev`)
-- `backend-main` - Production backend branch
-- `backend-dev` - Development backend branch
-- `backend-feature/*` - Backend feature branches (cloned off `backend-dev`)
+| Layer      | Stack                                                      |
+| ---------- | ---------------------------------------------------------- |
+| Mobile App | Expo / React Native, TypeScript                            |
+| Backend    | Node.js / Express, Supabase (Postgres + Auth)              |
+| Infrastructure | Render (Express API), Expo (development)               |
 
-### Workflow
-**For Frontend Development:**
-1. Create feature branches from `frontend-dev`: `git checkout -b frontend-feature/your-feature`
-2. Develop features in feature branches
-3. Merge feature branches into `frontend-dev` for testing
-4. Merge `frontend-dev` into `frontend-main` for production releases
+---
 
-**For Backend Development:**
-1. Create feature branches from `backend-dev`: `git checkout -b backend-feature/your-feature`
-2. Develop features in feature branches
-3. Merge feature branches into `backend-dev` for testing
-4. Merge `backend-dev` into `backend-main` for production releases
+## Getting Started
 
-## 🚀 Quick Start
+### Requirements
 
-### Prerequisites
-- Node.js 18+ 
-- Git
-- Supabase account
-- Vercel account (for frontend deployment)
-- Render account (for backend deployment)
+- Node.js 18+
+- npm or yarn
+- Expo CLI (`npm install -g expo-cli`)
+- Supabase project (service role + anon keys)
+- Render or equivalent host for the Express API
 
-### Local Development
+### Setup
 
-1. **Clone repository**
+1. **Install dependencies**
    ```bash
-   git clone <repo-url>
-   cd bruinCoin
-   ```
-
-2. **Backend Setup**
-   ```bash
-   git checkout backend-dev
-   cd backend
    npm install
-   cp .env.example .env
-   # Fill in your Supabase credentials in .env
-   npm run dev
-   ```
+   cd backend && npm install
+   cd ../frontend/mobile && npm install
 
-3. **Frontend Setup** (in separate terminal)
-   ```bash
-   git checkout frontend-dev
-   cd frontend
-   npm install
-   cp .env.local.example .env.local
-   # Fill in your Supabase credentials in .env.local
-   npm run dev
-   ```
+Environment Variables
 
-## 📁 Project Structure
+frontend/mobile/.env
 
-```
-bruinCoin/                  # Single Git repository
-├── .git/                  # Git repository
-├── frontend/              # Frontend code (Next.js)
-│   ├── src/
-│   │   ├── app/            # Next.js 13+ app directory
-│   │   ├── components/     # Reusable components
-│   │   ├── lib/            # Utility functions
-│   │   └── styles/         # Global styles
-│   ├── .env.local.example  # Environment variables template
-│   ├── next.config.js
-│   ├── package.json
-│   └── README.md
-├── backend/               # Backend code (Node.js/Express)
-│   ├── src/
-│   │   ├── controllers/     # Route controllers
-│   │   ├── middleware/      # Custom middleware
-│   │   ├── models/          # Database models
-│   │   ├── routes/          # API routes
-│   │   └── utils/           # Utility functions
-│   ├── .env.example         # Environment variables template
-│   ├── package.json
-│   ├── server.js           # Entry point
-│   └── README.md
-└── README.md              # Main project documentation
-```
+EXPO_PUBLIC_SUPABASE_URL=<your supabase url>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<supabase anon key>
+EXPO_PUBLIC_API_URL=<your deployed express url or http://localhost:3001>
+backend/.env
 
-## 🔧 Environment Variables
-
-### Backend (.env)
-```env
-NODE_ENV=development
+SUPABASE_URL=<your supabase url>
+SUPABASE_SERVICE_ROLE_KEY=<supabase service role key>
 PORT=3001
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-JWT_SECRET=your_jwt_secret
-```
+Run the backend
 
-### Frontend (.env.local)
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
+cd backend
+npm run dev
+Run the Expo app
 
-### Mobile (.env)
-Copy `frontend/mobile/.env.example` to `frontend/mobile/.env` and set:
-```env
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-EXPO_PUBLIC_API_URL=http://localhost:3001
-```
+cd frontend/mobile
+npm start --tunnel
+Scan the QR code using Expo Go on your phone (or press i/a for simulator). Make sure EXPO_PUBLIC_API_URL matches your deployed backend or http://localhost:3001.
 
-## 🗄️ Database Schema (Supabase)
+Project Structure
+backend/
+  express/
+    src/
+      routes/
+      lib/
+frontend/
+  mobile/
+    screens/
+    components/
+    lib/
+Scripts
+Command	Description
+npm run dev (backend)	Start the Express API with nodemon
+npm run build (backend)	TypeScript build
+npm start --tunnel (frontend/mobile)	Expo dev server with tunnel for devices
+npm start (frontend/mobile)	Expo dev server (LAN/localhost)
+Deployment
+API: Deploy backend/express/dist via Render. Ensure env vars are set (Supabase service role key, etc.).
+Mobile: Build with Expo EAS once the backend URL is public.
+Web: (If you use Next.js or need a marketing site) adjust as needed.
+License
+This repository is proprietary to B-Food. Redistribution without permission is prohibited.
 
-### Users Table
-- `id` (uuid, primary key)
-- `email` (text, unique)
-- `username` (text, unique)
-- `created_at` (timestamp)
-- `updated_at` (timestamp)
+If you have ideas or run into issues, open an issue or contact the project maintainer.
 
-### Wallets Table
-- `id` (uuid, primary key)
-- `user_id` (uuid, foreign key)
-- `balance` (decimal)
-- `currency` (text, default: 'BRUIN')
-- `created_at` (timestamp)
-- `updated_at` (timestamp)
 
-### Transactions Table
-- `id` (uuid, primary key)
-- `from_wallet_id` (uuid, foreign key)
-- `to_wallet_id` (uuid, foreign key)
-- `amount` (decimal)
-- `type` (text: 'transfer', 'deposit', 'withdrawal')
-- `status` (text: 'pending', 'completed', 'failed')
-- `created_at` (timestamp)
-
-## 🚀 Deployment
-
-### Frontend (Vercel)
-1. Connect your GitHub repository to Vercel
-2. Set build command: `cd frontend && npm run build`
-3. Set output directory: `frontend/.next`
-4. Set root directory: `frontend`
-5. Add environment variables in Vercel dashboard
-6. Deploy from `frontend-main` branch
-
-### Backend (Render)
-1. Connect your GitHub repository to Render
-2. Set build command: `cd backend && npm install`
-3. Set start command: `cd backend && npm start`
-4. Set root directory: `backend`
-5. Add environment variables in Render dashboard
-6. Deploy from `backend-main` branch
-
-## 🔒 Security Best Practices
-
-- ✅ Environment variables properly separated (client vs server)
-- ✅ Supabase RLS (Row Level Security) enabled
-- ✅ API rate limiting implemented
-- ✅ Input validation and sanitization
-- ✅ CORS properly configured
-- ✅ JWT tokens for authentication
-- ✅ No secrets exposed in client-side code
-
-## 🛠️ Development Commands
-
-### Backend
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm start           # Start production server
-npm test            # Run tests
-npm run lint        # Run linter
-```
-
-### Frontend
-```bash
-npm run dev         # Start development server
-npm run build       # Build for production
-npm start          # Start production server
-npm run lint       # Run linter
-```
-
-## 📝 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
-
-### Wallets
-- `GET /api/wallets` - Get user wallets
-- `POST /api/wallets` - Create new wallet
-- `GET /api/wallets/:id` - Get specific wallet
-
-### Transactions
-- `GET /api/transactions` - Get user transactions
-- `POST /api/transactions` - Create new transaction
-- `GET /api/transactions/:id` - Get specific transaction
-
-## 🤝 Contributing
-
-### For Frontend Development
-1. Switch to frontend dev branch: `git checkout frontend-dev`
-2. Create a feature branch: `git checkout -b frontend-feature/your-feature-name`
-3. Make your changes in the `frontend/` directory
-4. Test thoroughly
-5. Create a pull request to `frontend-dev`
-6. After review and testing, merge to `frontend-main` for production
-
-### For Backend Development
-1. Switch to backend dev branch: `git checkout backend-dev`
-2. Create a feature branch: `git checkout -b backend-feature/your-feature-name`
-3. Make your changes in the `backend/` directory
-4. Test thoroughly
-5. Create a pull request to `backend-dev`
-6. After review and testing, merge to `backend-main` for production
-
-## 📄 License
-
-MIT License - see LICENSE file for details
+Replace the old README entirely with that markdown so the repo reflects the new B-Food scope.
