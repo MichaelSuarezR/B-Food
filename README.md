@@ -47,7 +47,7 @@ npm install
 
 #Start Expo and clear the Metro cache:
 cd ../frontend/mobile
-npx expo start -c
+npm start --clear
 ```
 Then:
 - Install Expo Go on your phone
