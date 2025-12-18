@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,13 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
-
 type HomeScreenProps = {
   darkMode: boolean;
   onToggleDarkMode: () => void;
   onProfilePress: () => void;
   onMessagesPress: () => void;
+  liveStatuses: Record<string, LiveDiningStatus>;
+  loadingStatuses: boolean;
 };
 
 type DiningHall = {
@@ -31,9 +31,10 @@ type DiningHall = {
   statusDetail?: string;
   liveStatusText?: string;
   activityLevel?: number;
+  hasLiveUpdate?: boolean;
 };
 
-type LiveDiningStatus = {
+export type LiveDiningStatus = {
   id: string;
   status: DiningHall['status'];
   statusText?: string;
@@ -48,8 +49,8 @@ const BASE_DINING_HALLS: DiningHall[] = [
     id: 'epicuria-ackerman',
     name: 'Epic at Ackerman',
     neighborhood: 'Ackerman Union',
-    status: 'open',
-    closesAt: 'Hours refresh below',
+    status: 'unknown',
+    closesAt: 'Loading hours...',
     rating: 4.6,
     description: 'Chef-driven Mediterranean plates, wood-fired pizzas, pasta and patisserie vibes in Ackerman Union.',
     specialties: ['Small Plates', 'Fresh Pasta', 'Pastries'],
@@ -59,8 +60,8 @@ const BASE_DINING_HALLS: DiningHall[] = [
     id: 'bruin-cafe',
     name: 'Bruin Café',
     neighborhood: 'Sproul Hall',
-    status: 'open',
-    closesAt: 'Hours refresh below',
+    status: 'unknown',
+    closesAt: 'Loading hours...',
     rating: 4.5,
     description: 'Cold brew, artisan sandwiches, and grab-and-go bites perfect for study sessions.',
     specialties: ['Cold Brew', 'Paninis', 'Grab & Go'],
@@ -70,8 +71,8 @@ const BASE_DINING_HALLS: DiningHall[] = [
     id: 'rendezvous',
     name: 'Rendezvous',
     neighborhood: 'Rieber Terrace',
-    status: 'open',
-    closesAt: 'Hours refresh below',
+    status: 'unknown',
+    closesAt: 'Loading hours...',
     rating: 4.4,
     description: 'Late-night tacos, burritos, ramen, and pan-Asian fusion favorites.',
     specialties: ['Tacos', 'Burritos', 'Bubble Tea'],
@@ -81,8 +82,8 @@ const BASE_DINING_HALLS: DiningHall[] = [
     id: 'hedrick-study',
     name: 'The Study at Hedrick',
     neighborhood: 'Hedrick Hall',
-    status: 'open',
-    closesAt: 'Hours refresh below',
+    status: 'unknown',
+    closesAt: 'Loading hours...',
     rating: 4.3,
     description: 'Cafe lounge with all-day breakfast, waffles, smoothies, and a chill study atmosphere.',
     specialties: ['Waffles', 'Smoothies', 'Study Snacks'],
@@ -102,10 +103,9 @@ export default function HomeScreen({
   onToggleDarkMode,
   onProfilePress,
   onMessagesPress,
+  liveStatuses,
+  loadingStatuses,
 }: HomeScreenProps) {
-  const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:3001';
-  const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveDiningStatus>>({});
-  const [loadingStatuses, setLoadingStatuses] = useState(false);
 
   const handleDiningHallPress = (hall: DiningHall) => {
     Alert.alert(
@@ -114,44 +114,6 @@ export default function HomeScreen({
       [{ text: 'Got it' }],
     );
   };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchStatuses = async () => {
-      try {
-        setLoadingStatuses(true);
-        const response = await fetch(`${apiUrl}/api/dining/status`);
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-        const payload = await response.json();
-        if (!isMounted) return;
-
-        const nextStatuses: Record<string, LiveDiningStatus> = {};
-        (payload?.halls ?? []).forEach((hall: LiveDiningStatus) => {
-          if (hall?.id) {
-            nextStatuses[hall.id] = hall;
-          }
-        });
-        setLiveStatuses(nextStatuses);
-      } catch (error) {
-        console.error('Failed to load dining hall statuses', error);
-      } finally {
-        if (isMounted) {
-          setLoadingStatuses(false);
-        }
-      }
-    };
-
-    fetchStatuses();
-    const interval = setInterval(fetchStatuses, 5 * 60 * 1000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [apiUrl]);
 
   const diningHalls = useMemo(() => {
     return BASE_DINING_HALLS.map((hall) => {
@@ -166,6 +128,7 @@ export default function HomeScreen({
         statusDetail: live.statusDetail ?? hall.statusDetail,
         activityLevel: live.activityLevel ?? hall.activityLevel,
         closesAt: live.statusDetail ?? hall.closesAt,
+        hasLiveUpdate: Boolean(live),
       };
     });
   }, [liveStatuses]);
@@ -183,6 +146,8 @@ export default function HomeScreen({
     }),
     [darkMode],
   );
+  const hasAnyLiveStatuses = Object.keys(liveStatuses).length > 0;
+  const showInitialLoading = loadingStatuses && !hasAnyLiveStatuses;
 
   return (
     <ScrollView
@@ -227,8 +192,32 @@ export default function HomeScreen({
           </Text>
         </View>
 
-        {diningHalls.map((hall) => (
-          <TouchableOpacity
+        {diningHalls.map((hall) => {
+          const isHallLoading = showInitialLoading && !hall.hasLiveUpdate;
+          const statusColor = isHallLoading
+            ? theme.secondaryText
+            : STATUS_COLORS[hall.status] || STATUS_COLORS.unknown;
+          const statusBackground = `${statusColor}22`;
+          const activityLabel = isHallLoading
+            ? 'Updating activity...'
+            : typeof hall.activityLevel === 'number'
+              ? `${hall.activityLevel}% active`
+              : 'Activity unknown';
+          const closesLabel = isHallLoading ? 'Fetching hours...' : hall.closesAt;
+          const statusLabel = isHallLoading
+            ? 'Loading...'
+            : hall.liveStatusText
+              ? hall.liveStatusText
+              : hall.status === 'busy'
+                ? 'Busy'
+                : hall.status === 'closed'
+                  ? 'Closed'
+                  : hall.status === 'open'
+                    ? 'Open'
+                    : 'Status unknown';
+
+          return (
+            <TouchableOpacity
             key={hall.id}
             style={[
               styles.hallCard,
@@ -253,20 +242,12 @@ export default function HomeScreen({
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: `${STATUS_COLORS[hall.status]}22` },
+                    { backgroundColor: statusBackground },
                   ]}
                 >
-                  <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[hall.status] }]} />
-                  <Text style={[styles.statusText, { color: STATUS_COLORS[hall.status] }]}>
-                    {hall.liveStatusText
-                      ? hall.liveStatusText
-                      : hall.status === 'busy'
-                        ? 'Busy'
-                        : hall.status === 'closed'
-                          ? 'Closed'
-                          : hall.status === 'open'
-                            ? 'Open'
-                            : 'Status unknown'}
+                  <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                  <Text style={[styles.statusText, { color: statusColor }]}>
+                    {statusLabel}
                   </Text>
                 </View>
               </View>
@@ -274,7 +255,7 @@ export default function HomeScreen({
               <Text style={[styles.hallDescription, { color: theme.secondaryText }]}>
                 {hall.description}
               </Text>
-              {hall.statusDetail && (
+              {!isHallLoading && hall.statusDetail && (
                 <Text style={[styles.statusDetailText, { color: theme.primaryText }]}>
                   {hall.statusDetail}
                 </Text>
@@ -283,20 +264,17 @@ export default function HomeScreen({
               <View style={styles.metaRow}>
                 <View style={[styles.metaItem, { backgroundColor: theme.chipBackground }]}>
                   <Ionicons name="alarm-outline" size={16} color="#2563eb" />
-                  <Text style={[styles.metaText, { color: theme.chipText }]}>{hall.closesAt}</Text>
+                  <Text style={[styles.metaText, { color: theme.chipText }]}>{closesLabel}</Text>
                 </View>
                 <View style={[styles.metaItem, { backgroundColor: theme.chipBackground }]}>
                   <Ionicons name="pulse-outline" size={16} color="#2563eb" />
-                  <Text style={[styles.metaText, { color: theme.chipText }]}>
-                    {typeof hall.activityLevel === 'number'
-                      ? `${hall.activityLevel}% active`
-                      : 'Activity unknown'}
-                  </Text>
+                  <Text style={[styles.metaText, { color: theme.chipText }]}>{activityLabel}</Text>
                 </View>
               </View>
             </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </ScrollView>
   );
