@@ -76,6 +76,9 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
   const navTopPadding = Math.max(insets.top, 24);
   const scrollBottomPadding = Math.max(insets.bottom, 16) + 32;
 
+  const emailPrefix = (email?: string | null) =>
+    email ? email.split('@')[0] || '' : '';
+
   useEffect(() => {
     fetchUserData();
   }, [viewUserId]);
@@ -115,7 +118,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         setUser((prev) => prev ?? {
           id: authUser.id,
           email: authUser.email || '',
-          user_name: fallbackDisplayName,
+          user_name: fallbackDisplayName || emailPrefix(authUser.email),
           bio: typeof authUser.user_metadata?.bio === 'string' ? authUser.user_metadata.bio : null,
           rating: null,
           profile_picture_url:
@@ -183,16 +186,16 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         if (createResponse.ok) {
           const createData = await createResponse.json();
           if (createData.user) {
-            setUser(createData.user);
-            resolvedName = resolvedName || createData.user.user_name || '';
-            resolvedProfileUrl = resolvedProfileUrl || createData.user.profile_picture_url || null;
-          }
-        } else {
-          // Fallback to auth user data if creation fails
+          setUser(createData.user);
+          resolvedName = resolvedName || createData.user.user_name || '';
+          resolvedProfileUrl = resolvedProfileUrl || createData.user.profile_picture_url || null;
+        }
+      } else {
+        // Fallback to auth user data if creation fails
           const fallbackUser = {
             id: authUser.id,
             email: authUser.email || '',
-            user_name: authUser.user_metadata?.user_name || null,
+            user_name: authUser.user_metadata?.user_name || emailPrefix(authUser.email),
             bio: null,
             rating: null,
             profile_picture_url: null,
@@ -385,6 +388,16 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
     try {
       const existingResponse = await fetch(`${apiUrl}/api/users/${authUser.id}`);
       if (existingResponse.status === 200) {
+        const existingText = await existingResponse.text();
+        try {
+          const parsed = JSON.parse(existingText);
+          if (parsed?.user) {
+            setUser(parsed.user);
+            return true;
+          }
+        } catch {
+          // ignore
+        }
         return true;
       }
 
@@ -397,7 +410,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
             editingName.trim() ||
             authUser.user_metadata?.display_name ||
             authUser.user_metadata?.user_name ||
-            (authUser.email ? authUser.email.split('@')[0] : null),
+            emailPrefix(authUser.email),
           profile_picture_url:
             profileImageUri && profileImageUri.startsWith('http')
               ? profileImageUri
@@ -460,7 +473,14 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         return;
       }
 
-      let profilePictureUrl = profileImageUri;
+      const ensuredProfileRow = await ensureProfileRecordExists(authUser);
+      if (!ensuredProfileRow) {
+        setSaving(false);
+        Alert.alert('Error', 'Could not prepare your profile for updating.');
+        return;
+      }
+
+      let profilePictureUrl = profileImageUri ?? user.profile_picture_url ?? null;
 
       // Upload new profile image if a local URI is set (not already a URL)
       if (profileImageUri && !profileImageUri.startsWith('http')) {
