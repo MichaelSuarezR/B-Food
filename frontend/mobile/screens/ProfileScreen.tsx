@@ -381,6 +381,62 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
     }
   };
 
+  const ensureProfileRecordExists = async (authUser: any) => {
+    try {
+      const existingResponse = await fetch(`${apiUrl}/api/users/${authUser.id}`);
+      if (existingResponse.status === 200) {
+        return true;
+      }
+
+      if (existingResponse.status === 404) {
+        console.log('[Profile] No profile record found. Creating one before update.');
+        const profilePayload = {
+          id: authUser.id,
+          email: authUser.email || '',
+          user_name:
+            editingName.trim() ||
+            authUser.user_metadata?.display_name ||
+            authUser.user_metadata?.user_name ||
+            (authUser.email ? authUser.email.split('@')[0] : null),
+          profile_picture_url:
+            profileImageUri && profileImageUri.startsWith('http')
+              ? profileImageUri
+              : authUser.user_metadata?.profile_picture_url || null,
+        };
+
+        const createResponse = await fetch(`${apiUrl}/api/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(profilePayload),
+        });
+
+        const createText = await createResponse.text();
+        if (!createResponse.ok) {
+          console.error('[Profile] Failed to create profile record', createResponse.status, createText);
+          return false;
+        }
+
+        try {
+          const createdData = JSON.parse(createText);
+          if (createdData?.user) {
+            setUser(createdData.user);
+          }
+        } catch (parseError) {
+          console.warn('[Profile] Unable to parse create response JSON', parseError);
+        }
+        return true;
+      }
+
+      console.error('[Profile] Unexpected response when checking profile record', existingResponse.status);
+      return false;
+    } catch (error) {
+      console.error('[Profile] Error ensuring profile record exists', error);
+      return false;
+    }
+  };
+
   const handleSave = async () => {
     console.log('[Profile] handleSave pressed', { hasUser: !!user, viewUserId });
     if (!user) {
@@ -469,6 +525,45 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
       const responseText = await response.text();
       if (!response.ok) {
         console.error('[Profile] Update failed', response.status, responseText);
+
+        // If profile record is missing on the backend, try to create it once then retry the update.
+        if (response.status === 404) {
+          const ensuredAfter404 = await ensureProfileRecordExists(authUser);
+          if (ensuredAfter404) {
+            console.log('[Profile] Retrying update after creating profile record');
+            const retryResponse = await fetch(`${apiUrl}/api/users/${authUser.id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(updateData),
+            });
+            const retryText = await retryResponse.text();
+            if (retryResponse.ok) {
+              let retryData: any = {};
+              try {
+                retryData = JSON.parse(retryText);
+              } catch {
+                // ignore parse error
+              }
+              const retryUser = retryData.user || (Array.isArray(retryData) ? retryData[0] : undefined);
+              if (retryUser) {
+                setUser(retryUser);
+              }
+              setDisplayNameOverride(editingName.trim());
+              setProfileImageUri(profilePictureUrl || null);
+              setProfileImageSavedUri(profilePictureUrl || null);
+              setProfileImageBase64(null);
+              setIsEditing(false);
+              Alert.alert('Success', 'Profile updated successfully!');
+              setSaving(false);
+              return;
+            } else {
+              console.error('[Profile] Retry update failed', retryResponse.status, retryText);
+            }
+          }
+        }
+
         let message = 'Failed to update profile';
         try {
           const errorData = JSON.parse(responseText);

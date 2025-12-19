@@ -55,8 +55,11 @@ router.post('/', async (req: Request, res: Response) => {
   // Normalize email to lowercase and trim whitespace
   const normalizedEmail = email.toLowerCase().trim();
 
-  const insertData: Record<string, unknown> = { id, email: normalizedEmail };
-  if (typeof user_name === 'string') insertData.user_name = user_name;
+  const derivedName = typeof user_name === 'string' && user_name.trim().length > 0
+    ? user_name.trim()
+    : normalizedEmail.split('@')[0];
+
+  const insertData: Record<string, unknown> = { id, email: normalizedEmail, user_name: derivedName };
   if (typeof bio === 'string') insertData.bio = bio;
   if (typeof profile_picture_url === 'string') insertData.profile_picture_url = profile_picture_url;
 
