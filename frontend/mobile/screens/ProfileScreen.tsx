@@ -50,6 +50,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
   const [displayNameOverride, setDisplayNameOverride] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
   const [profileImageSavedUri, setProfileImageSavedUri] = useState<string | null>(null);
+  const [profileImageBase64, setProfileImageBase64] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
@@ -103,6 +104,28 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         
         targetUserId = authUser.id;
         setEmailAddress(authUser.email || '');
+
+        const fallbackDisplayName =
+          typeof authUser.user_metadata?.display_name === 'string'
+            ? authUser.user_metadata.display_name.trim()
+            : typeof authUser.user_metadata?.user_name === 'string'
+              ? authUser.user_metadata.user_name
+              : null;
+
+        setUser((prev) => prev ?? {
+          id: authUser.id,
+          email: authUser.email || '',
+          user_name: fallbackDisplayName,
+          bio: typeof authUser.user_metadata?.bio === 'string' ? authUser.user_metadata.bio : null,
+          rating: null,
+          profile_picture_url:
+            typeof authUser.user_metadata?.profile_picture_url === 'string'
+              ? authUser.user_metadata.profile_picture_url
+              : null,
+          trade_preferences: null,
+          category_preferences: null,
+          interests: null,
+        });
       }
 
       let metadataDisplayName = '';
@@ -264,6 +287,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
     setIsEditing(false);
     setEditingName(displayNameLabel);
     setProfileImageUri(profileImageSavedUri);
+    setProfileImageBase64(null);
   };
 
   const pickProfileImage = async () => {
@@ -279,10 +303,19 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]) {
-        setProfileImageUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setProfileImageUri(asset.uri);
+
+        if (asset.base64) {
+          const prefix = asset.mimeType ? `data:${asset.mimeType};base64,` : 'data:image/jpeg;base64,';
+          setProfileImageBase64(`${prefix}${asset.base64}`);
+        } else {
+          setProfileImageBase64(null);
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -290,12 +323,20 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
     }
   };
 
-  const uploadProfileImage = async (imageUri: string, userId: string): Promise<string | null> => {
+  const uploadProfileImage = async (
+    imageUri: string,
+    userId: string,
+    base64Override?: string | null,
+  ): Promise<string | null> => {
     try {
-      // Read file as base64
-      const base64String = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      let base64String = base64Override || null;
+
+      // Read file as base64 if we don't already have it from the picker
+      if (!base64String) {
+        base64String = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
 
       if (!base64String || base64String.length === 0) {
         throw new Error('Failed to read image file');
@@ -312,7 +353,8 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
       }
 
       // Format as data URL
-      const dataUrl = `data:${mimeType};base64,${base64String}`;
+      const hasPrefix = base64String.startsWith('data:');
+      const dataUrl = hasPrefix ? base64String : `data:${mimeType};base64,${base64String}`;
 
       // Upload via API
       const response = await fetch(`${apiUrl}/api/upload/images`, {
@@ -340,10 +382,19 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
   };
 
   const handleSave = async () => {
-    if (!user || viewUserId) return; // Don't allow saving when viewing another user's profile
+    console.log('[Profile] handleSave pressed', { hasUser: !!user, viewUserId });
+    if (!user) {
+      Alert.alert('Hold up', 'Profile data is still loading. Please wait a moment and try again.');
+      return;
+    }
+    if (viewUserId) {
+      Alert.alert('Read only', 'You can’t edit another person’s profile.');
+      return;
+    }
 
     try {
       setSaving(true);
+      console.log('[Profile] Saving edits', { editingName, hasNewImage: !!profileImageBase64 });
 
       // Get current user from Supabase auth
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -358,7 +409,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
       // Upload new profile image if a local URI is set (not already a URL)
       if (profileImageUri && !profileImageUri.startsWith('http')) {
         try {
-          const uploadedUrl = await uploadProfileImage(profileImageUri, authUser.id);
+          const uploadedUrl = await uploadProfileImage(profileImageUri, authUser.id, profileImageBase64);
           if (uploadedUrl) {
             profilePictureUrl = uploadedUrl;
           } else {
@@ -377,12 +428,18 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         }
       }
 
-      await supabase.auth.updateUser({
+      const { error: updateMetadataError } = await supabase.auth.updateUser({
         data: {
           display_name: editingName.trim(),
           profile_picture_url: profilePictureUrl || '',
         },
       });
+      if (updateMetadataError) {
+        console.error('[Profile] Failed to update auth metadata', updateMetadataError);
+        Alert.alert('Error', updateMetadataError.message || 'Failed to update profile metadata');
+        setSaving(false);
+        return;
+      }
 
       // Update user profile
       const updateData: Record<string, string> = {};
@@ -399,6 +456,8 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         return;
       }
 
+      console.log('[Profile] Sending update', updateData);
+
       const response = await fetch(`${apiUrl}/api/users/${authUser.id}`, {
         method: 'PATCH',
         headers: {
@@ -407,22 +466,46 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         body: JSON.stringify(updateData),
       });
 
+      const responseText = await response.text();
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Update failed' }));
-        Alert.alert('Error', errorData.error || 'Failed to update profile');
+        console.error('[Profile] Update failed', response.status, responseText);
+        let message = 'Failed to update profile';
+        try {
+          const errorData = JSON.parse(responseText);
+          if (errorData?.error) {
+            message = errorData.error;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        Alert.alert('Error', message);
         setSaving(false);
         return;
       }
 
-      const responseData = await response.json();
-      if (responseData.user) {
-        setUser(responseData.user);
-        setDisplayNameOverride(editingName.trim());
-        setProfileImageUri(profilePictureUrl || null);
-        setProfileImageSavedUri(profilePictureUrl || null);
-        setIsEditing(false);
-        Alert.alert('Success', 'Profile updated successfully!');
+      let responseData: any = {};
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.warn('[Profile] Could not parse update response JSON', parseError);
       }
+
+      const userFromResponse = responseData.user || (Array.isArray(responseData) ? responseData[0] : undefined);
+      if (userFromResponse) {
+        setUser(userFromResponse);
+      } else if (user) {
+        setUser({
+          ...user,
+          ...updateData,
+        });
+      }
+
+      setDisplayNameOverride(editingName.trim());
+      setProfileImageUri(profilePictureUrl || null);
+      setProfileImageSavedUri(profilePictureUrl || null);
+      setProfileImageBase64(null);
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
     } catch (error: any) {
       console.error('Error saving profile:', error);
       Alert.alert('Error', error.message || 'Failed to save profile');

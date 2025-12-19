@@ -153,13 +153,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
     .from('users')
     .update(update)
     .eq('id', id)
-    .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
-    .single();
+    .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests');
 
   if (error) return res.status(500).json({ error: error.message });
-  if (!data) return res.status(404).json({ error: 'User not found' });
-  return res.json({ user: data });
+  const first = Array.isArray(data) ? data[0] : data;
+  if (!first) return res.status(404).json({ error: 'User not found' });
+  return res.json({ user: first });
 });
 
 export default router;
-
