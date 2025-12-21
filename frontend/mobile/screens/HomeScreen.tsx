@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,8 +7,12 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 type HomeScreenProps = {
   darkMode: boolean;
   onToggleDarkMode: () => void;
@@ -106,13 +110,83 @@ export default function HomeScreen({
   liveStatuses,
   loadingStatuses,
 }: HomeScreenProps) {
+  const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:3001';
+  const [matchModalVisible, setMatchModalVisible] = useState(false);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [matchedDeliverer, setMatchedDeliverer] = useState<any>(null);
+  const [selectedHall, setSelectedHall] = useState<DiningHall | null>(null);
+  const [myPin, setMyPin] = useState('');
+  const [partnerPin, setPartnerPin] = useState('');
+  const [partnerPinEntry, setPartnerPinEntry] = useState('');
 
   const handleDiningHallPress = (hall: DiningHall) => {
     Alert.alert(
-      hall.name,
-      'Menus and live ordering are coming soon for this dining hall.',
-      [{ text: 'Got it' }],
+      'Match with a deliverer?',
+      `We’ll match you with the longest-waiting deliverer at ${hall.name}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Match me', onPress: () => matchDeliverer(hall) },
+      ],
     );
+  };
+
+  const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString();
+
+  const matchDeliverer = async (hall: DiningHall) => {
+    try {
+      setMatchError(null);
+      setMatchLoading(true);
+      setSelectedHall(hall);
+      setMatchedDeliverer(null);
+      setMyPin(generatePin());
+      setPartnerPin(generatePin());
+      setPartnerPinEntry('');
+
+      const response = await fetch(`${apiUrl}/api/deliverers?hall_id=${encodeURIComponent(hall.id)}`);
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(text || 'Failed to fetch deliverers');
+      }
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // ignore parse error
+      }
+      const first = data?.deliverers?.[0];
+      if (!first) {
+        setMatchError('No deliverers are active for this hall right now.');
+        setMatchModalVisible(true);
+        return;
+      }
+      try {
+        await fetch(`${apiUrl}/api/deliverers/deactivate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: first.user_id }),
+        });
+      } catch (err) {
+        console.error('Failed to deactivate deliverer after match', err);
+      }
+      setMatchedDeliverer(first);
+      setMatchModalVisible(true);
+    } catch (error: any) {
+      setMatchError(error.message || 'Failed to match a deliverer');
+      setMatchModalVisible(true);
+    } finally {
+      setMatchLoading(false);
+    }
+  };
+
+  const closeMatchModal = () => {
+    setMatchModalVisible(false);
+    setMatchedDeliverer(null);
+    setSelectedHall(null);
+    setMyPin('');
+    setPartnerPin('');
+    setPartnerPinEntry('');
+    setMatchError(null);
   };
 
   const diningHalls = useMemo(() => {
@@ -150,6 +224,7 @@ export default function HomeScreen({
   const showInitialLoading = loadingStatuses && !hasAnyLiveStatuses;
 
   return (
+    <>
     <ScrollView
       style={[styles.container, { backgroundColor: theme.background }]}
       contentInsetAdjustmentBehavior="automatic"
@@ -277,6 +352,80 @@ export default function HomeScreen({
         })}
       </View>
     </ScrollView>
+
+    <Modal visible={matchModalVisible} animationType="slide" transparent>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalCard, { backgroundColor: darkMode ? '#0b1220' : '#ffffff', borderColor: theme.border }]}>
+          {matchLoading ? (
+            <View style={styles.modalLoading}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={[styles.modalTitle, { color: theme.primaryText, marginTop: 12 }]}>Matching you...</Text>
+            </View>
+          ) : matchError ? (
+            <>
+              <Text style={[styles.modalTitle, { color: theme.primaryText }]}>No match yet</Text>
+              <Text style={[styles.modalBody, { color: theme.secondaryText }]}>{matchError}</Text>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ef4444' }]} onPress={closeMatchModal}>
+                <Text style={styles.modalButtonText}>Close</Text>
+              </TouchableOpacity>
+            </>
+          ) : matchedDeliverer && selectedHall ? (
+            <>
+              <Text style={[styles.modalTitle, { color: theme.primaryText }]}>Deliverer found</Text>
+              <Text style={[styles.modalSubtitle, { color: theme.secondaryText }]}>
+                Waiting longest at {selectedHall.name}
+              </Text>
+              <View style={[styles.summaryBox, { borderColor: theme.border }]}>
+                <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Deliverer</Text>
+                <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.user_name || 'Anonymous Bruin'}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.secondaryText, marginTop: 10 }]}>Order they want</Text>
+                <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.desired_order || 'No notes'}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.secondaryText, marginTop: 10 }]}>Contact</Text>
+                <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.contact || 'Contact info not provided'}</Text>
+              </View>
+
+              <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 8 }]}>
+                Once both orders are ready to be picked up, you'll need to facetime your deliverer and share your screen so they can pick up your order.
+              </Text>
+              <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 10, fontWeight: '700' }]}>
+                Your PIN to share with deliverer
+              </Text>
+              <Text style={[styles.pinDisplay, { color: theme.primaryText, borderColor: theme.border }]}>{myPin}</Text>
+              <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 6 }]}>
+                Ask your deliverer for their PIN and enter it below to continue.
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: theme.border,
+                    color: theme.primaryText,
+                    backgroundColor: darkMode ? '#0f172a' : '#f8fafc',
+                    marginBottom: 12,
+                  },
+                ]}
+                placeholder="Enter deliverer's PIN"
+                placeholderTextColor={theme.secondaryText}
+                keyboardType="number-pad"
+                value={partnerPinEntry}
+                onChangeText={setPartnerPinEntry}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: partnerPinEntry === partnerPin ? '#10b981' : '#9ca3af' },
+                ]}
+                disabled={partnerPinEntry !== partnerPin}
+                onPress={closeMatchModal}
+              >
+                <Text style={styles.modalButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -441,5 +590,74 @@ const styles = StyleSheet.create({
   metaText: {
     color: '#1d4ed8',
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  modalBody: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  pinDisplay: {
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  summaryBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

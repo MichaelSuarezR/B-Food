@@ -113,7 +113,33 @@ router.get('/', async (req: Request, res: Response) => {
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ deliverers: data ?? [] });
+
+  const deliverers = data ?? [];
+  if (deliverers.length === 0) {
+    return res.json({ deliverers: [] });
+  }
+
+  const userIds = deliverers.map((d) => d.user_id).filter(Boolean);
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, user_name, email')
+    .in('id', userIds);
+
+  if (usersError) {
+    console.error('Failed to fetch deliverer user data', usersError);
+  }
+
+  const usersById = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
+  const enriched = deliverers.map((d) => {
+    const user = usersById[d.user_id];
+    return {
+      ...d,
+      user_name: user?.user_name || (user?.email ? user.email.split('@')[0] : null),
+      contact: user?.email || null,
+    };
+  });
+
+  return res.json({ deliverers: enriched });
 });
 
 export default router;
