@@ -10,6 +10,10 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -355,74 +359,89 @@ export default function HomeScreen({
 
     <Modal visible={matchModalVisible} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalCard, { backgroundColor: darkMode ? '#0b1220' : '#ffffff', borderColor: theme.border }]}>
-          {matchLoading ? (
-            <View style={styles.modalLoading}>
-              <ActivityIndicator size="large" color="#3b82f6" />
-              <Text style={[styles.modalTitle, { color: theme.primaryText, marginTop: 12 }]}>Matching you...</Text>
-            </View>
-          ) : matchError ? (
-            <>
-              <Text style={[styles.modalTitle, { color: theme.primaryText }]}>No match yet</Text>
-              <Text style={[styles.modalBody, { color: theme.secondaryText }]}>{matchError}</Text>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ef4444' }]} onPress={closeMatchModal}>
-                <Text style={styles.modalButtonText}>Close</Text>
-              </TouchableOpacity>
-            </>
-          ) : matchedDeliverer && selectedHall ? (
-            <>
-              <Text style={[styles.modalTitle, { color: theme.primaryText }]}>Deliverer found</Text>
-              <Text style={[styles.modalSubtitle, { color: theme.secondaryText }]}>
-                Waiting longest at {selectedHall.name}
-              </Text>
-              <View style={[styles.summaryBox, { borderColor: theme.border }]}>
-                <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Deliverer</Text>
-                <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.user_name || 'Anonymous Bruin'}</Text>
-                <Text style={[styles.summaryLabel, { color: theme.secondaryText, marginTop: 10 }]}>Order they want</Text>
-                <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.desired_order || 'No notes'}</Text>
-                <Text style={[styles.summaryLabel, { color: theme.secondaryText, marginTop: 10 }]}>Contact</Text>
-                <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.contact || 'Contact info not provided'}</Text>
-              </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+          style={{ width: '100%' }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={[styles.modalCard, { backgroundColor: darkMode ? '#0b1220' : '#ffffff', borderColor: theme.border }]}>
+              {matchLoading ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color="#3b82f6" />
+                  <Text style={[styles.modalTitle, { color: theme.primaryText, marginTop: 12 }]}>Matching you...</Text>
+                </View>
+              ) : matchError ? (
+                <>
+                  <Text style={[styles.modalTitle, { color: theme.primaryText }]}>No match yet</Text>
+                  <Text style={[styles.modalBody, { color: theme.secondaryText }]}>{matchError}</Text>
+                  <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ef4444' }]} onPress={closeMatchModal}>
+                    <Text style={styles.modalButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </>
+              ) : matchedDeliverer && selectedHall ? (
+                <ScrollView
+                  contentContainerStyle={{ paddingBottom: 12 }}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Text style={[styles.modalTitle, { color: theme.primaryText }]}>Deliverer found</Text>
+                  <Text style={[styles.modalSubtitle, { color: theme.secondaryText }]}>
+                    Waiting longest at {selectedHall.name}
+                  </Text>
+                  <View style={[styles.summaryBox, { borderColor: theme.border }]}>
+                    <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Deliverer</Text>
+                    <Text style={[styles.summaryValue, { color: theme.primaryText }]}>
+                      {matchedDeliverer.display_name || matchedDeliverer.user_name || 'Anonymous Bruin'}
+                    </Text>
+                    <Text style={[styles.summaryLabel, { color: theme.secondaryText, marginTop: 10 }]}>Order they want</Text>
+                    <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.desired_order || 'No notes'}</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.secondaryText, marginTop: 10 }]}>Contact</Text>
+                    <Text style={[styles.summaryValue, { color: theme.primaryText }]}>{matchedDeliverer.contact || 'Contact info not provided'}</Text>
+                  </View>
 
-              <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 8 }]}>
-                Once both orders are ready to be picked up, you'll need to facetime your deliverer and share your screen so they can pick up your order.
-              </Text>
-              <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 10, fontWeight: '700' }]}>
-                Your PIN to share with deliverer
-              </Text>
-              <Text style={[styles.pinDisplay, { color: theme.primaryText, borderColor: theme.border }]}>{myPin}</Text>
-              <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 6 }]}>
-                Ask your deliverer for their PIN and enter it below to continue.
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: theme.border,
-                    color: theme.primaryText,
-                    backgroundColor: darkMode ? '#0f172a' : '#f8fafc',
-                    marginBottom: 12,
-                  },
-                ]}
-                placeholder="Enter deliverer's PIN"
-                placeholderTextColor={theme.secondaryText}
-                keyboardType="number-pad"
-                value={partnerPinEntry}
-                onChangeText={setPartnerPinEntry}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  { backgroundColor: partnerPinEntry === partnerPin ? '#10b981' : '#9ca3af' },
-                ]}
-                disabled={partnerPinEntry !== partnerPin}
-                onPress={closeMatchModal}
-              >
-                <Text style={styles.modalButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
-        </View>
+                  <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 8 }]}>
+                    Once both orders are ready to be picked up, you'll need to facetime your deliverer and share your screen so they can pick up your order.
+                  </Text>
+                  <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 10, fontWeight: '700' }]}>
+                    Your PIN to share with deliverer
+                  </Text>
+                  <Text style={[styles.pinDisplay, { color: theme.primaryText, borderColor: theme.border }]}>{myPin}</Text>
+                  <Text style={[styles.modalBody, { color: theme.primaryText, marginTop: 6 }]}>
+                    Ask your deliverer for their PIN and enter it below to continue.
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: theme.border,
+                        color: theme.primaryText,
+                        backgroundColor: darkMode ? '#0f172a' : '#f8fafc',
+                        marginBottom: 12,
+                      },
+                    ]}
+                    placeholder="Enter deliverer's PIN"
+                    placeholderTextColor={theme.secondaryText}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    value={partnerPinEntry}
+                    onChangeText={setPartnerPinEntry}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      { backgroundColor: partnerPinEntry === partnerPin ? '#10b981' : '#9ca3af' },
+                    ]}
+                    disabled={partnerPinEntry !== partnerPin}
+                    onPress={closeMatchModal}
+                  >
+                    <Text style={styles.modalButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              ) : null}
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
     </>
@@ -600,6 +619,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
+    maxHeight: '90%',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
