@@ -261,6 +261,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
   const emailToShow = emailAddress || user?.email || '';
   const displayNameLabel = getDisplayName();
   const profileInitial = displayNameLabel.trim().charAt(0).toUpperCase() || 'B';
+  const avatarUri: string | null = null; // force initials avatar
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to log out?", [
@@ -282,15 +283,11 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
   };
 
   const handleEdit = () => {
-    setIsEditing(true);
-    setEditingName(displayNameLabel);
+    // Editing is disabled
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
-    setEditingName(displayNameLabel);
-    setProfileImageUri(profileImageSavedUri);
-    setProfileImageBase64(null);
+    // Editing is disabled
   };
 
   const pickProfileImage = async () => {
@@ -661,29 +658,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
               {getUsername()}
             </Text>
           </View>
-          {!viewUserId && (
-            !isEditing ? (
-              <TouchableOpacity onPress={handleEdit} style={styles.navButton}>
-                <Ionicons name="create-outline" size={22} color={theme.text} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.headerActions}>
-                <TouchableOpacity
-                  onPress={handleCancel}
-                  style={[styles.roundIconButton, { backgroundColor: `${theme.accent}15` }]}
-                >
-                  <Ionicons name="close" size={18} color="#ef4444" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleSave} style={[styles.roundIconButton, { backgroundColor: theme.accent }]} disabled={saving}>
-                  {saving ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Ionicons name="checkmark" size={18} color="#ffffff" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            )
-          )}
+          <View style={styles.navButton} />
         </View>
 
         {loading ? (
@@ -705,8 +680,7 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
         >
           <View style={styles.profileImageContainer}>
                 <TouchableOpacity
-                  onPress={!viewUserId && isEditing ? pickProfileImage : undefined}
-                  disabled={!isEditing}
+                  disabled
                   style={styles.profileImageTouchable}
                 >
             <View
@@ -715,9 +689,9 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
                 { backgroundColor: darkMode ? '#0f172a' : '#e2e8f0', borderColor: theme.accent },
               ]}
             >
-                    {profileImageUri ? (
+                    {avatarUri ? (
                       <Image
-                        source={{ uri: profileImageUri }}
+                        source={{ uri: avatarUri }}
                         style={styles.profileImagePhoto}
                       />
                     ) : (
@@ -730,11 +704,6 @@ export default function ProfileScreen({ onBack, onLogout, viewUserId, darkMode =
                         <Text style={[styles.profileImageInitial, { color: theme.text }]}>
                           {profileInitial}
                         </Text>
-                      </View>
-                    )}
-                    {isEditing && (
-                      <View style={styles.profileImageOverlay}>
-                        <Ionicons name="camera" size={24} color="#ffffff" />
                       </View>
                     )}
             </View>

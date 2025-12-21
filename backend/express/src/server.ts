@@ -11,6 +11,7 @@ import ratingsRouter from './routes/ratings';
 import offersRouter from './routes/offers';
 import uploadRouter from './routes/upload';
 import diningRouter from './routes/dining';
+import deliverersRouter from './routes/deliverers';
 
 // Load environment variables
 dotenv.config();
@@ -66,6 +67,7 @@ app.use('/api/ratings', ratingsRouter);
 app.use('/api/offers', offersRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/dining', diningRouter);
+app.use('/api/deliverers', deliverersRouter);
 
 // Start server
 const port = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
