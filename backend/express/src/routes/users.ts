@@ -28,7 +28,7 @@ router.get('/', async (req: Request, res: Response) => {
 
   let query = supabase
     .from('users')
-    .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
+    .select('id, email, user_name, phone_number, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -43,7 +43,7 @@ router.get('/', async (req: Request, res: Response) => {
 
 // POST /api/users - create a new user
 router.post('/', async (req: Request, res: Response) => {
-  const { id, email, user_name, bio, profile_picture_url, trade_preferences, category_preferences, interests } = req.body ?? {};
+  const { id, email, user_name, phone_number, bio, profile_picture_url, trade_preferences, category_preferences, interests } = req.body ?? {};
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'id (uuid string) is required' });
@@ -60,6 +60,7 @@ router.post('/', async (req: Request, res: Response) => {
     : normalizedEmail.split('@')[0];
 
   const insertData: Record<string, unknown> = { id, email: normalizedEmail, user_name: derivedName };
+  if (typeof phone_number === 'string') insertData.phone_number = phone_number.trim();
   if (typeof bio === 'string') insertData.bio = bio;
   if (typeof profile_picture_url === 'string') insertData.profile_picture_url = profile_picture_url;
 
@@ -76,7 +77,7 @@ router.post('/', async (req: Request, res: Response) => {
   const { data, error } = await supabase
     .from('users')
     .insert([insertData])
-    .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
+    .select('id, email, user_name, phone_number, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
     .single();
 
   if (error) {
@@ -89,7 +90,7 @@ router.post('/', async (req: Request, res: Response) => {
       if (isEmailConstraint) {
         const { data: existingUserByEmail } = await supabase
           .from('users')
-          .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
+          .select('id, email, user_name, phone_number, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
           .eq('email', normalizedEmail)
           .single();
         if (existingUserByEmail) {
@@ -100,7 +101,7 @@ router.post('/', async (req: Request, res: Response) => {
       // Fallback: try to find by id
       const { data: existingUserById } = await supabase
         .from('users')
-        .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
+        .select('id, email, user_name, phone_number, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
         .eq('id', id)
         .single();
       if (existingUserById) {
@@ -118,7 +119,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
   const { data, error } = await supabase
     .from('users')
-    .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
+    .select('id, email, user_name, phone_number, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests')
     .eq('id', id)
     .single();
 
@@ -130,11 +131,12 @@ router.get('/:id', async (req: Request, res: Response) => {
 // PATCH /api/users/:id - update user profile
 router.patch('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { user_name, email, bio, profile_picture_url, trade_preferences, category_preferences, interests } = req.body ?? {};
+  const { user_name, email, phone_number, bio, profile_picture_url, trade_preferences, category_preferences, interests } = req.body ?? {};
 
   const update: Record<string, unknown> = {};
   if (typeof user_name === 'string') update.user_name = user_name;
   if (typeof email === 'string') update.email = email;
+  if (typeof phone_number === 'string') update.phone_number = phone_number.trim();
   if (typeof bio === 'string') update.bio = bio;
   if (typeof profile_picture_url === 'string') update.profile_picture_url = profile_picture_url;
 
@@ -156,7 +158,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     .from('users')
     .update(update)
     .eq('id', id)
-    .select('id, email, user_name, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests');
+    .select('id, email, user_name, phone_number, created_at, bio, rating, profile_picture_url, trade_preferences, category_preferences, interests');
 
   if (error) return res.status(500).json({ error: error.message });
   const first = Array.isArray(data) ? data[0] : data;

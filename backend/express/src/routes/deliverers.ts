@@ -122,7 +122,7 @@ router.get('/', async (req: Request, res: Response) => {
   const userIds = deliverers.map((d) => d.user_id).filter(Boolean);
   const { data: users, error: usersError } = await supabase
     .from('users')
-    .select('id, user_name, email')
+    .select('id, user_name, email, phone_number')
     .in('id', userIds);
 
   if (usersError) {
@@ -132,10 +132,12 @@ router.get('/', async (req: Request, res: Response) => {
   const usersById = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
   const enriched = deliverers.map((d) => {
     const user = usersById[d.user_id];
+    const displayName = user?.user_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Bruin');
     return {
       ...d,
-      user_name: user?.user_name || (user?.email ? user.email.split('@')[0] : null),
-      contact: user?.email || null,
+      user_name: displayName,
+      display_name: displayName,
+      contact: user?.phone_number || user?.email || null,
     };
   });
 
