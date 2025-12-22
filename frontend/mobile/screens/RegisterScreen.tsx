@@ -16,8 +16,14 @@ const isValidUclaEmail = (email: string): boolean => {
   );
 };
 
+const isValidPhone = (phone: string): boolean => {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10;
+};
+
 export default function RegisterScreen({ onRegister, onSwitchToLogin }: RegisterScreenProps) {
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +32,7 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
 
   const handleRegister = async () => {
     // Validate all fields
-    if (!email || !password || !confirmPassword) {
+    if (!email || !phone || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -46,6 +52,12 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
     // Validate password length
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    // Validate phone
+    if (!isValidPhone(phone)) {
+      Alert.alert('Error', 'Please enter a valid phone number');
       return;
     }
 
@@ -74,6 +86,7 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
               id: data.user.id,
               email: data.user.email || email.toLowerCase().trim(),
               user_name: data.user.user_metadata?.user_name || null,
+              phone_number: phone.replace(/\D/g, ''),
             }),
           });
 
@@ -128,6 +141,16 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Phone number"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
           autoCapitalize="none"
           autoCorrect={false}
         />
